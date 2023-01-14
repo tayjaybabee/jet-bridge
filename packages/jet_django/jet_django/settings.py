@@ -61,7 +61,7 @@ database_engine = None
 mysql_read_default_file = database_settings.get('OPTIONS', {}).get('read_default_file')
 
 if JET_DATABASE_EXTRA is None and mysql_read_default_file:
-    JET_DATABASE_EXTRA = '?read_default_file={}'.format(mysql_read_default_file)
+    JET_DATABASE_EXTRA = f'?read_default_file={mysql_read_default_file}'
 
 if connection.vendor == 'postgresql':
     database_engine = 'postgresql'

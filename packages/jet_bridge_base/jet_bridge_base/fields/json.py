@@ -17,13 +17,12 @@ class JSONField(Field):
         super(JSONField, self).__init__(*args, **kwargs)
 
     def to_internal_value_item(self, value):
-        if isinstance(value, string_types):
-            try:
-                return json.loads(value)
-            except ValueError:
-                self.error('invalid')
-        else:
+        if not isinstance(value, string_types):
             return value
+        try:
+            return json.loads(value)
+        except ValueError:
+            self.error('invalid')
 
     def to_representation_item(self, value):
         return value

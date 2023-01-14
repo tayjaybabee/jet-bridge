@@ -57,15 +57,15 @@ class SSHTunnel(object):
             f.write(self.ssh_private_key.encode('utf-8'))
             keyfile = f.name
 
-        listen = 'localhost:{}:{}:{}'.format(self.local_bind_port, self.remote_host, self.remote_port)
+        listen = f'localhost:{self.local_bind_port}:{self.remote_host}:{self.remote_port}'
         command = ['ssh', '-N', '-L', listen, '-i', keyfile, '-o', 'StrictHostKeyChecking=no', '-o', 'ExitOnForwardFailure=yes']
 
         if self.ssh_port:
             command.extend(['-p', str(self.ssh_port)])
 
-        command.extend(['{}@{}'.format(self.ssh_user, self.ssh_host)])
+        command.extend([f'{self.ssh_user}@{self.ssh_host}'])
 
-        logger.debug('Running SSH tunnel: {}'.format(command))
+        logger.debug(f'Running SSH tunnel: {command}')
 
         try:
             process = Popen(
@@ -78,7 +78,7 @@ class SSHTunnel(object):
             raise Exception('SSH is not installed')
 
         output = process.stdout.readlines()
-        logger.debug('SSH run output: {}'.format(output))
+        logger.debug(f'SSH run output: {output}')
 
         os.unlink(keyfile)
 
@@ -86,7 +86,7 @@ class SSHTunnel(object):
 
         if return_code is not None:
             error_output = process.stderr.readlines()
-            logger.debug('SSH terminated with error: {}'.format(error_output))
+            logger.debug(f'SSH terminated with error: {error_output}')
 
             error = '\n'.join(map(lambda x: x.decode('utf-8'), error_output))
             raise Exception(error)
@@ -99,7 +99,7 @@ class SSHTunnel(object):
             return_code = process.poll()
 
             if return_code is not None:
-                logger.info('SSH tunnel is terminated (CODE: {})'.format(return_code))
+                logger.info(f'SSH tunnel is terminated (CODE: {return_code})')
                 break
             elif not self.is_tunnel_alive():
                 logger.info('SSH tunnel is dropped')
@@ -118,10 +118,7 @@ class SSHTunnel(object):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         try:
-            if s.connect_ex(connect_to) == 0:
-                return True
-            else:
-                return False
+            return s.connect_ex(connect_to) == 0
         finally:
             s.close()
 
@@ -138,7 +135,7 @@ class SSHTunnel(object):
         self.check_thread = threading.Thread(
             target=self.execute_check_thread,
             args=(self.process,),
-            name='Tunnel-check-{}'.format(self.name)
+            name=f'Tunnel-check-{self.name}',
         )
         self.check_thread.start()
 

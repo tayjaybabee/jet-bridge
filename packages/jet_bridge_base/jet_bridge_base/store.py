@@ -17,7 +17,7 @@ class Store(object):
 
     def open(self):
         try:
-            self.engine = create_engine('sqlite:///{}'.format(self.path))
+            self.engine = create_engine(f'sqlite:///{self.path}')
             self.sessions = scoped_session(sessionmaker(self.engine))
 
             import jet_bridge_base.models

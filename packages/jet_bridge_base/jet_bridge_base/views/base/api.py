@@ -25,7 +25,7 @@ class BaseAPIView(object):
     def log_request(self, request):
         params = {'IP': request.get_ip(), 'SID': request.get_stick_session()}
         params_str = ' '.join(map(lambda x: '='.join([x[0], x[1]]), filter(lambda x: x[1], params.items())))
-        logger.debug('{} {} {}'.format(request.method, request.full_url(), params_str))
+        logger.debug(f'{request.method} {request.full_url()} {params_str}')
 
     def before_dispatch(self, request):
         self.log_request(request)
@@ -89,47 +89,48 @@ class BaseAPIView(object):
                 'error_code': exc.code
             }, status=exc.status_code)
         else:
-            if settings.DEBUG:
-                ctx = {
-                    'path': request.path if request else None,
-                    'full_path': request.protocol + '://' + request.host + request.path if request else None,
-                    'method': request.method if request else None,
-                    'type': configuration.get_type(),
-                    'version': configuration.get_version(),
-                    'current_datetime': datetime.now().strftime('%c'),
-                    'python_version': platform.python_version(),
-                    'python_executable': sys.executable,
-                    'python_path': sys.path
+            if not settings.DEBUG:
+                return TemplateResponse('500.html', status=500)
+            ctx = {
+                'path': request.path if request else None,
+                'full_path': f'{request.protocol}://{request.host}{request.path}'
+                if request
+                else None,
+                'method': request.method if request else None,
+                'type': configuration.get_type(),
+                'version': configuration.get_version(),
+                'current_datetime': datetime.now().strftime('%c'),
+                'python_version': platform.python_version(),
+                'python_executable': sys.executable,
+                'python_path': sys.path,
+            }
+
+            if exc:
+                ctx |= {
+                    'exception_type': exc_type.__name__,
+                    'exception_value': six.text_type(exc),
                 }
 
-                if exc:
-                    ctx.update({
-                        'exception_type': exc_type.__name__,
-                        'exception_value': six.text_type(exc)
-                    })
+            if traceback:
+                last_traceback = traceback
 
-                if traceback:
-                    last_traceback = traceback
+                while last_traceback.tb_next:
+                    last_traceback = last_traceback.tb_next
 
-                    while last_traceback.tb_next:
-                        last_traceback = last_traceback.tb_next
+                frame = last_traceback.tb_frame
+                func_name = frame.f_code.co_name
+                file_name = frame.f_code.co_filename
+                line_number = frame.f_lineno
 
-                    frame = last_traceback.tb_frame
-                    func_name = frame.f_code.co_name
-                    file_name = frame.f_code.co_filename
-                    line_number = frame.f_lineno
+                ctx |= {
+                    'exception_last_traceback_line': line_number,
+                    'exception_last_traceback_func': func_name,
+                    'exception_last_traceback_file': file_name,
+                }
 
-                    ctx.update({
-                        'exception_last_traceback_line': line_number,
-                        'exception_last_traceback_func': func_name,
-                        'exception_last_traceback_file': file_name,
-                    })
+            logger.exception(exc)
 
-                logger.exception(exc)
-
-                return TemplateResponse('500.debug.html', status=500, data=ctx)
-            else:
-                return TemplateResponse('500.html', status=500)
+            return TemplateResponse('500.debug.html', status=500, data=ctx)
 
     def dispatch(self, action, request, *args, **kwargs):
         if not hasattr(self, action):

@@ -38,14 +38,13 @@ def map_dto_column(table_name, column, metadata):
         elif column['default_type'] == 'uuid':
             server_default = text("uuid_generate_v4()")
         elif column['default_type'] == 'sequence':
-            server_default = text("nextval({})".format(column['default_value']))
+            server_default = text(f"nextval({column['default_value']})")
         elif column['default_type'] == 'auto_increment':
             autoincrement = True
 
     params = column.get('params')
-    if params:
-        if 'length' in params:
-            column_kwargs['length'] = params['length']
+    if params and 'length' in params:
+        column_kwargs['length'] = params['length']
 
     if callable(column_type):
         try:
@@ -53,24 +52,23 @@ def map_dto_column(table_name, column, metadata):
         except TypeError:
             pass
 
-    if params:
-        if 'related_model' in params:
-            model = params['related_model'].get('model')
+    if params and 'related_model' in params:
+        model = params['related_model'].get('model')
 
-            try:
-                table = list(filter(lambda x: x.name == model, metadata.tables.values()))[0]
+        try:
+            table = list(filter(lambda x: x.name == model, metadata.tables.values()))[0]
 
-                table_primary_keys = table.primary_key.columns.keys()
-                table_primary_key = table_primary_keys[0] if len(table_primary_keys) > 0 else None
-                related_column_name = params.get('custom_primary_key') or table_primary_key
-                related_column = [x for x in table.columns if x.name == related_column_name][0]
-                name = '{}_{}_fkey'.format(table_name, column['name'])
+            table_primary_keys = table.primary_key.columns.keys()
+            table_primary_key = table_primary_keys[0] if len(table_primary_keys) > 0 else None
+            related_column_name = params.get('custom_primary_key') or table_primary_key
+            related_column = [x for x in table.columns if x.name == related_column_name][0]
+            name = f"{table_name}_{column['name']}_fkey"
 
-                column_type = related_column.type
-                foreign_key = ForeignKey(related_column, name=name)
-                args.append(foreign_key)
-            except IndexError:
-                pass
+            column_type = related_column.type
+            foreign_key = ForeignKey(related_column, name=name)
+            args.append(foreign_key)
+        except IndexError:
+            pass
 
     data_source_meta = {}
     data_source_field = column.get('data_source_field')
@@ -162,9 +160,11 @@ class TableColumnView(APIView):
         try:
             self.perform_create(request, serializer)
         except Exception as e:
-            if isinstance(e, DBAPIError):
-                if '(psycopg2.errors.DuplicateColumn)' in e.args[0]:
-                    raise ValidationError('Column with such name already exists')
+            if (
+                isinstance(e, DBAPIError)
+                and '(psycopg2.errors.DuplicateColumn)' in e.args[0]
+            ):
+                raise ValidationError('Column with such name already exists')
             raise ValidationError(str(e))
 
         return JSONResponse(serializer.representation_data, status=status.HTTP_201_CREATED)
@@ -279,9 +279,7 @@ class TableColumnView(APIView):
                 pass
 
         column_type_stmt = column_type
-        sql_type_convert = get_sql_type_convert(column.type)
-
-        if sql_type_convert:
+        if sql_type_convert := get_sql_type_convert(column.type):
             column_type_stmt += ' USING {0}'.format(sql_type_convert(existing_column_name))
 
         for foreign_key in existing_column.foreign_keys:

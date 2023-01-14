@@ -70,9 +70,7 @@ def init_urls():
 
 
 
-    api_urls = router.urls + extra_urls
-
-    return api_urls
+    return router.urls + extra_urls
 
 
 jet_urls = init_urls()

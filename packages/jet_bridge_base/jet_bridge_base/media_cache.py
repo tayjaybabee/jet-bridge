@@ -30,10 +30,7 @@ class MediaCache(object):
         files.sort(key=lambda x: configuration.media_get_modified_time(x['path']))
 
     def get_files_size(self, files):
-        total_size = 0
-        for file in files:
-            total_size += file['size']
-        return total_size
+        return sum(file['size'] for file in files)
 
     def update_files(self):
         self.files = self.get_files()
@@ -58,7 +55,7 @@ class MediaCache(object):
 
     def filename(self, path):
         extension = os.path.splitext(path)[1]
-        return '{}{}'.format(hashlib.sha256(path.encode('utf8')).hexdigest(), extension)
+        return f"{hashlib.sha256(path.encode('utf8')).hexdigest()}{extension}"
 
     def full_path(self, path):
         return os.path.join(self.dir, self.filename(path))

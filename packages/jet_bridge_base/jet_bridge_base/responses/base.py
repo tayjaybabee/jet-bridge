@@ -12,12 +12,7 @@ class Response(object):
             self.headers.update(headers)
 
     def header_items(self):
-        if not self.headers:
-            return []
-        return self.headers.items()
+        return self.headers.items() if self.headers else []
 
     def render(self):
-        if self.data is None:
-            return bytes()
-
-        return self.data
+        return bytes() if self.data is None else self.data

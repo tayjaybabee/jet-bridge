@@ -23,43 +23,42 @@ def is_column_optional(column):
 
 
 def map_column_default(column):
-    if column.server_default is not None:
-        if hasattr(column.server_default, 'arg') and isinstance(column.server_default.arg, TextClause):
-            value = column.server_default.arg.text
-            if value.lower() == 'now()':
-                return {
-                    'default_type': 'datetime_now'
-                }
-            elif value.lower() == 'uuid_generate_v4()':
-                return {
-                    'default_type': 'uuid'
-                }
-            elif value.lower() == 'true':
-                return {
-                    'default_type': 'value',
-                    'default_value': True
-                }
-            elif value.lower() == 'false':
-                return {
-                    'default_type': 'value',
-                    'default_value': False
-                }
+    if column.server_default is None:
+        return
+    if hasattr(column.server_default, 'arg') and isinstance(column.server_default.arg, TextClause):
+        value = column.server_default.arg.text
+        if value.lower() == 'now()':
+            return {
+                'default_type': 'datetime_now'
+            }
+        elif value.lower() == 'uuid_generate_v4()':
+            return {
+                'default_type': 'uuid'
+            }
+        elif value.lower() == 'true':
+            return {
+                'default_type': 'value',
+                'default_value': True
+            }
+        elif value.lower() == 'false':
+            return {
+                'default_type': 'value',
+                'default_value': False
+            }
 
-            value_regex = re.search("^'(?P<value>.+)'::(?P<type>.+)$", value)
-            if value_regex:
-                match = value_regex.groupdict()
-                return {
-                    'default_type': 'value',
-                    'default_value': match['value']
-                }
+        if value_regex := re.search("^'(?P<value>.+)'::(?P<type>.+)$", value):
+            match = value_regex.groupdict()
+            return {
+                'default_type': 'value',
+                'default_value': match['value']
+            }
 
-            nextval_regex = re.search("^nextval\((?P<value>.+)\)$", value)
-            if nextval_regex:
-                match = nextval_regex.groupdict()
-                return {
-                    'default_type': 'sequence',
-                    'default_value': match['value']
-                }
+        if nextval_regex := re.search("^nextval\((?P<value>.+)\)$", value):
+            match = nextval_regex.groupdict()
+            return {
+                'default_type': 'sequence',
+                'default_value': match['value']
+            }
 
 
 def map_column(column, editable):
@@ -148,8 +147,7 @@ def map_column(column, editable):
         'data_source_hidden': data_source_hidden
     }
 
-    server_default = map_column_default(column)
-    if server_default:
+    if server_default := map_column_default(column):
         result['default_type'] = server_default['default_type']
         if 'default_value' in server_default:
             result['default_value'] = server_default['default_value']
@@ -162,27 +160,23 @@ def map_relationship(relationship):
     related_field = get_set_first(relationship.remote_side)
     direction = relationship_direction_to_str(relationship.direction)
 
-    result = {
+    return {
         'name': relationship.key,
         'direction': direction,
         'local_field': local_field.name,
         'related_model': relationship.target.name,
-        'related_field': related_field.name
+        'related_field': related_field.name,
     }
-
-    return result
 
 
 def map_relationship_override(override):
-    result = {
+    return {
         'name': override.name,
         'direction': override.direction,
         'local_field': override.local_field,
         'related_model': override.related_model,
-        'related_field': override.related_field
+        'related_field': override.related_field,
     }
-
-    return result
 
 
 # def map_relation(relation):
@@ -313,10 +307,15 @@ class ModelDescriptionView(APIView):
             connection = get_request_connection(request)
 
             with store.session() as session:
-                overrides = session.query(ModelRelationOverrideModel).filter(
-                    ModelRelationOverrideModel.connection_id == connection['id'],
-                    draft == draft
-                ).all()
+                overrides = (
+                    session.query(ModelRelationOverrideModel)
+                    .filter(
+                        ModelRelationOverrideModel.connection_id
+                        == connection['id'],
+                        True,
+                    )
+                    .all()
+                )
 
                 for override in overrides:
                     if override.model not in relationships_overrides:

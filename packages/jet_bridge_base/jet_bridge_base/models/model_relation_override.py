@@ -22,4 +22,4 @@ class ModelRelationOverrideModel(Base):
     )
 
     def __repr__(self):
-        return '{} {} {}'.format(self.connection_id, self.model, self.draft)
+        return f'{self.connection_id} {self.model} {self.draft}'

@@ -12,15 +12,13 @@ def read(fname):
 
 
 def get_install_requires():
-    install_requires = [
+    return [
         'tornado==5.1.1',
         'six',
         'jet-bridge-base==1.6.2',
         'paramiko==2.8.1',
         'sshtunnel',
     ]
-
-    return install_requires
 
 setup(
     name='jet-bridge',

@@ -97,39 +97,38 @@ class JetDjangoConfiguration(Configuration):
         pk = model_cls._meta.pk.column
         if getattr(instance, pk):
             return model_cls, model_cls.objects.get(pk=getattr(instance, pk))
-        else:
-            django_instance = model_cls()
-            for field in self.get_model_fields(model_cls):
-                setattr(django_instance, field.name, getattr(instance, field.get_attname_column()[1]))
-            return model_cls, django_instance
+        django_instance = model_cls()
+        for field in self.get_model_fields(model_cls):
+            setattr(django_instance, field.name, getattr(instance, field.get_attname_column()[1]))
+        return model_cls, django_instance
 
     def on_model_pre_create(self, model, instance):
         try:
             model_cls, django_instance = self.get_django_instance(model, instance)
             pre_save.send(model_cls, raw=True, using=self, instance=django_instance, update_fields=[])
         except Exception as e:
-            logger.warning('[!] on_model_pre_create signal failed: {}'.format(str(e)))
+            logger.warning(f'[!] on_model_pre_create signal failed: {str(e)}')
 
     def on_model_post_create(self, model, instance):
         try:
             model_cls, django_instance = self.get_django_instance(model, instance)
             post_save.send(model_cls, raw=True, using=self, instance=django_instance, created=True, update_fields=[])
         except Exception as e:
-            logger.warning('[!] on_model_post_create signal failed: {}'.format(str(e)))
+            logger.warning(f'[!] on_model_post_create signal failed: {str(e)}')
 
     def on_model_pre_update(self, model, instance):
         try:
             model_cls, django_instance = self.get_django_instance(model, instance)
             pre_save.send(model_cls, raw=True, using=self, instance=django_instance, update_fields=[])
         except Exception as e:
-            logger.warning('[!] on_model_pre_update signal failed: {}'.format(str(e)))
+            logger.warning(f'[!] on_model_pre_update signal failed: {str(e)}')
 
     def on_model_post_update(self, model, instance):
         try:
             model_cls, django_instance = self.get_django_instance(model, instance)
             post_save.send(model_cls, raw=True, using=self, instance=django_instance, created=False, update_fields=[])
         except Exception as e:
-            logger.warning('[!] on_model_post_update signal failed: {}'.format(str(e)))
+            logger.warning(f'[!] on_model_post_update signal failed: {str(e)}')
 
     def on_model_pre_delete(self, model, instance):
         try:
@@ -137,14 +136,14 @@ class JetDjangoConfiguration(Configuration):
             pre_delete.send(model_cls, using=self, instance=django_instance)
             self.pre_delete_django_instance = django_instance
         except Exception as e:
-            logger.warning('[!] on_model_pre_delete signal failed: {}'.format(str(e)))
+            logger.warning(f'[!] on_model_pre_delete signal failed: {str(e)}')
 
     def on_model_post_delete(self, model, instance):
         try:
             model_cls = self.model_classes.get(model)
             post_delete.send(model_cls, using=self, instance=self.pre_delete_django_instance)
         except Exception as e:
-            logger.warning('[!] on_model_post_delete signal failed: {}'.format(str(e)))
+            logger.warning(f'[!] on_model_post_delete signal failed: {str(e)}')
 
     def model_key(self, model):
         return model._meta.db_table
@@ -152,15 +151,19 @@ class JetDjangoConfiguration(Configuration):
     def get_related_models(self, model):
         fields = model._meta.get_fields(include_hidden=True)
         def filter_fields(x):
-            if any(map(lambda rel: isinstance(x, rel), [
-                models.OneToOneRel,
-                models.OneToOneField,
-                models.ManyToOneRel,
-                models.ManyToManyField,
-                models.ManyToManyRel
-            ])):
-                return True
-            return False
+            return any(
+                map(
+                    lambda rel: isinstance(x, rel),
+                    [
+                        models.OneToOneRel,
+                        models.OneToOneField,
+                        models.ManyToOneRel,
+                        models.ManyToManyField,
+                        models.ManyToManyRel,
+                    ],
+                )
+            )
+
         return list(map(lambda x: x.related_model, filter(filter_fields, fields)))
 
     def field_db_column_from_name(self, name, fields):
@@ -170,14 +173,9 @@ class JetDjangoConfiguration(Configuration):
             return f.get_attname_column()[1]
 
     def guess_display_field(self, model, fields):
-        str_method = None
         str_methods = ['__str__', '__unicode__']
 
-        for m in str_methods:
-            if hasattr(model, m):
-                str_method = m
-                break
-
+        str_method = next((m for m in str_methods if hasattr(model, m)), None)
         if str_method is None:
             return
 
@@ -194,7 +192,7 @@ class JetDjangoConfiguration(Configuration):
             m = re.search(regex, source_code)
             if not m:
                 continue
-            field_name = m.group(1)
+            field_name = m[1]
             return self.field_db_column_from_name(field_name, fields)
 
     def serialize_model(self, model):
@@ -213,12 +211,12 @@ class JetDjangoConfiguration(Configuration):
             field_name = ordering[1:] if desc else ordering
 
             if '__' not in field_name:
-                field_name = self.field_db_column_from_name(field_name, fields)
-                if field_name:
-                    result['default_order_by'] = '-' + field_name if desc else field_name
+                if field_name := self.field_db_column_from_name(
+                    field_name, fields
+                ):
+                    result['default_order_by'] = f'-{field_name}' if desc else field_name
 
-        display_field = self.guess_display_field(model, fields)
-        if display_field:
+        if display_field := self.guess_display_field(model, fields):
             result['display_field'] = display_field
 
         return result
@@ -261,9 +259,11 @@ class JetDjangoConfiguration(Configuration):
     def serializable(self, value):
         if value is None:
             return value
-        if not isinstance(value, (str, bool, int, float)):
-            return six.text_type(value)
-        return value
+        return (
+            value
+            if isinstance(value, (str, bool, int, float))
+            else six.text_type(value)
+        )
 
     def serialize_related_model(self, Model):
         if not Model or not hasattr(Model, '_meta'):
@@ -276,16 +276,20 @@ class JetDjangoConfiguration(Configuration):
         fields = model._meta.get_fields()
 
         def filter_fields(x):
-            if any(map(lambda rel: isinstance(x, rel), [
-                models.ManyToOneRel,
-                models.ManyToManyField,
-                models.ManyToManyRel,
-                GenericRel,
-                GenericForeignKey,
-                GenericRelation
-            ])):
-                return False
-            return True
+            return not any(
+                map(
+                    lambda rel: isinstance(x, rel),
+                    [
+                        models.ManyToOneRel,
+                        models.ManyToManyField,
+                        models.ManyToManyRel,
+                        GenericRel,
+                        GenericForeignKey,
+                        GenericRelation,
+                    ],
+                )
+            )
+
         return filter(filter_fields, fields)
 
     def media_get_available_name(self, path):
@@ -325,9 +329,9 @@ class JetDjangoConfiguration(Configuration):
         self.media_storage.delete(path)
 
     def media_url(self, path, request):
-        url = '{}{}'.format(django_settings.MEDIA_URL, path)
+        url = f'{django_settings.MEDIA_URL}{path}'
 
         if not django_settings.MEDIA_URL.startswith('http://') and not django_settings.MEDIA_URL.startswith('https://'):
-            url = '{}://{}{}'.format(request.protocol, request.host, url)
+            url = f'{request.protocol}://{request.host}{url}'
 
         return url

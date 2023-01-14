@@ -9,7 +9,7 @@ class SqlParamsSerializers(fields.CharField):
             return []
         # value = list(filter(lambda x: x != '', value.split(',')))
         value = value.split(',')
-        return dict([['param_{}'.format(i), x] for i, x in enumerate(value)])
+        return dict([[f'param_{i}', x] for i, x in enumerate(value)])
 
     def to_representation_item(self, value):
         return list(value)

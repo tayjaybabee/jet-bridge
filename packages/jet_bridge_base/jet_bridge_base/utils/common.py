@@ -28,31 +28,30 @@ def get_random_string(length, allowed_chars='abcdefghijklmnopqrstuvwxyzABCDEFGHI
         # is better than absolute predictability.
         random.seed(
             hashlib.sha256(
-                ("%s%s%s" % (
-                    random.getstate(),
-                    time.time(),
-                    salt)).encode('utf-8')
-            ).digest())
-    return ''.join(random.choice(allowed_chars) for i in range(length))
+                f"{random.getstate()}{time.time()}{salt}".encode('utf-8')
+            ).digest()
+        )
+    return ''.join(random.choice(allowed_chars) for _ in range(length))
 
 
 def find_index(list, predicate):
-    for i, value in enumerate(list):
-        if predicate(value, i):
-            return i
-    return None
+    return next((i for i, value in enumerate(list) if predicate(value, i)), None)
 
 
 # TODO: Fix non dict list items
 # TODO: List merge is not universal
 def merge(destination, source):
     for key, value in source.items():
-        if key == 'params':
+        if (
+            key == 'params'
+            or not isinstance(value, dict)
+            and not isinstance(value, list)
+        ):
             destination[key] = value
         elif isinstance(value, dict):
             node = destination.setdefault(key, {})
             merge(node, value)
-        elif isinstance(value, list):
+        else:
             node = destination.setdefault(key, [])
 
             for item in value:
@@ -61,9 +60,6 @@ def merge(destination, source):
                     continue
                 node[index]
                 merge(node[index], item)
-        else:
-            destination[key] = value
-
     return destination
 
 
@@ -78,9 +74,7 @@ def get_set_first(value):
 
 
 def any_type_sorter(value):
-    if value is None:
-        return ''
-    return str(value)
+    return '' if value is None else str(value)
 
 
 def unique(arr):

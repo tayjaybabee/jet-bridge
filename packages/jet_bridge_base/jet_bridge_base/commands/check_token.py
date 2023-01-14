@@ -11,20 +11,22 @@ def check_token_command(api_url):
     try:
         if not is_resource_token_activated(settings.PROJECT, settings.TOKEN):
             logger.warning('[!] Your resource token is not activated')
-            logger.warning('[!] Project: {}'.format(settings.PROJECT))
-            logger.warning('[!] Token: {}'.format(settings.TOKEN))
+            logger.warning(f'[!] Project: {settings.PROJECT}')
+            logger.warning(f'[!] Token: {settings.TOKEN}')
 
             if settings.DATABASE_ENGINE != 'none' and settings.AUTO_OPEN_REGISTER and api_url.startswith('http'):
-                register_url = '{}register/'.format(api_url)
+                register_url = f'{api_url}register/'
 
                 if settings.TOKEN:
-                    register_url += '?token={}'.format(settings.TOKEN)
+                    register_url += f'?token={settings.TOKEN}'
 
                 if webbrowser.open(register_url):
-                    logger.warning('[!] Activation page was opened in your browser - {}'.format(register_url))
+                    logger.warning(
+                        f'[!] Activation page was opened in your browser - {register_url}'
+                    )
             else:
-                register_url = '{}register/'.format(api_url)
-                logger.warning('[!] Go to {} to activate it'.format(register_url))
+                register_url = f'{api_url}register/'
+                logger.warning(f'[!] Go to {register_url} to activate it')
     except RequestException:
         logger.error('[!] Can\'t connect to Jet Admin API')
         logger.error('[!] Token verification failed')

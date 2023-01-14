@@ -37,16 +37,14 @@ class Field(object):
 
         messages = {}
         for cls in reversed(self.__class__.__mro__):
-            messages.update(getattr(cls, 'field_error_messages', {}))
+            messages |= getattr(cls, 'field_error_messages', {})
         self.error_messages = messages
 
     def validate(self, value):
         return value
 
     def get_default(self):
-        if callable(self.default):
-            return self.default()
-        return self.default
+        return self.default() if callable(self.default) else self.default
 
     def get_value(self, data):
         try:
@@ -55,11 +53,7 @@ class Field(object):
             else:
                 field_value = getattr(data, self.field_name)
         except (KeyError, AttributeError):
-            if self.default is not empty:
-                return self.get_default()
-            else:
-                return empty
-
+            return self.get_default() if self.default is not empty else empty
         if not getattr(self, 'many', False) and not getattr(self, 'allow_many', False) and isinstance(field_value, list):
             field_value = field_value[0]
 
@@ -81,12 +75,11 @@ class Field(object):
         raise NotImplementedError
 
     def to_internal_value(self, value):
-        if self.many:
-            if value is empty:
-                return []
-            return list(map(lambda x: self.to_internal_value_item(x), value))
-        else:
+        if not self.many:
             return self.to_internal_value_item(value)
+        if value is empty:
+            return []
+        return list(map(lambda x: self.to_internal_value_item(x), value))
 
     def to_representation_item(self, value):
         raise NotImplementedError
@@ -105,6 +98,8 @@ class Field(object):
             msg = self.error_messages[key]
         except KeyError:
             class_name = self.__class__.__name__
-            raise AssertionError('Error with key={} is not found for class={}'.format(key, class_name))
+            raise AssertionError(
+                f'Error with key={key} is not found for class={class_name}'
+            )
         message_string = msg.format(**kwargs)
         raise ValidationError(message_string, code=key)

@@ -12,7 +12,7 @@ def track_database(request):
 
     track_databases = list(filter(lambda x: x != '', map(lambda x: x.lower().strip(), settings.TRACK_DATABASES.split(','))))
     conf = get_conf(request)
-    hostname = '{}:{}'.format(conf.get('host', ''), conf.get('port', '')).lower()
+    hostname = f"{conf.get('host', '')}:{conf.get('port', '')}".lower()
 
     if any(map(lambda x: fnmatch(hostname, x), track_databases)):
         headers = {}

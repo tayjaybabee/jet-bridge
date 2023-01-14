@@ -69,15 +69,16 @@ class SqlSerializer(Serializer):
 
     def validate(self, attrs):
         forbidden = ['insert', 'update', 'delete', 'grant', 'show']
-        for i in range(len(forbidden)):
-            forbidden.append('({}'.format(forbidden[i]))
-        if any(map(lambda x: ' {} '.format(attrs['query'].lower()).find(' {} '.format(x)) != -1, forbidden)):
+        forbidden.extend(f'({forbidden[i]}' for i in range(len(forbidden)))
+        if any(
+            map(lambda x: f' {x} ' in f" {attrs['query'].lower()} ", forbidden)
+        ):
             raise ValidationError({'query': 'forbidden query'})
 
         if attrs['v'] < 2:
             i = 0
             while attrs['query'].find('%s') != -1:
-                attrs['query'] = attrs['query'].replace('%s', ':param_{}'.format(i), 1)
+                attrs['query'] = attrs['query'].replace('%s', f':param_{i}', 1)
                 i += 1
 
         return attrs
@@ -112,10 +113,7 @@ class SqlSerializer(Serializer):
             return subquery.filter(sql.false())
 
         def group_name(i):
-            if i == 0:
-                return 'group'
-            else:
-                return 'group_{}'.format(i + 1)
+            return 'group' if i == 0 else 'group_{}'.format(i + 1)
 
         def map_group_column(group, i):
             x_lookup_param = group.get('xLookup')
@@ -251,15 +249,11 @@ class SqlSerializer(Serializer):
                 apply_session_timezone(session, data['timezone'])
             except SQLAlchemyError:
                 session.rollback()
-                pass
-
         if 'schema' in data:
             try:
                 session.execute('SET search_path TO :schema', {'schema': data['schema']})
             except SQLAlchemyError:
                 session.rollback()
-                pass
-
         subquery = text(query).columns().subquery('__jet_q2')
         count_rows = None
 
@@ -333,8 +327,6 @@ class SqlSerializer(Serializer):
             return response
         except SQLAlchemyError as e:
             session.rollback()
-            raise SqlError(e)
-        except TypeError as e:
             raise SqlError(e)
         except Exception as e:
             raise SqlError(e)

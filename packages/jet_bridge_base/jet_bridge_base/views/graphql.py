@@ -28,16 +28,13 @@ class GraphQLView(APIView):
         }
 
     def map_gql_error(self, error):
-        if isinstance(error, GraphQLError):
-            return error.message
-        else:
-            return str(error)
+        return error.message if isinstance(error, GraphQLError) else str(error)
 
     def wait_schema(self, request, schema_key, wait_schema):
         if not wait_schema:
             return
 
-        logger.info('Waiting GraphQL schema "{}"...'.format(wait_schema['id']))
+        logger.info(f"""Waiting GraphQL schema "{wait_schema['id']}"...""")
 
         generated_condition = wait_schema['generated']
         with generated_condition:
@@ -47,10 +44,10 @@ class GraphQLView(APIView):
         with connection_cache(request) as cache:
             cached_schema = cache.get(schema_key)
             if cached_schema and cached_schema['instance']:
-                logger.info('Found GraphQL schema "{}"'.format(wait_schema['id']))
+                logger.info(f"""Found GraphQL schema "{wait_schema['id']}\"""")
                 return cached_schema['instance']
             else:
-                logger.info('Not found GraphQL schema "{}"'.format(wait_schema['id']))
+                logger.info(f"""Not found GraphQL schema "{wait_schema['id']}\"""")
 
     def create_schema_object(self):
         new_schema_id = get_random_string(32)
@@ -107,20 +104,20 @@ class GraphQLView(APIView):
 
             if cached_schema and cached_schema['instance']:
                 return cached_schema['instance']
-            elif cached_schema and not cached_schema['instance']:
+            elif cached_schema:
                 wait_schema = cached_schema
             else:
                 new_schema = self.create_schema_object()
                 cache[schema_key] = new_schema
 
         if wait_schema:
-            existing_schema = self.wait_schema(request, schema_key, wait_schema)
-            if existing_schema:
+            if existing_schema := self.wait_schema(
+                request, schema_key, wait_schema
+            ):
                 return existing_schema
-            else:
-                with connection_cache(request) as cache:
-                    new_schema = self.create_schema_object()
-                    cache[schema_key] = new_schema
+            with connection_cache(request) as cache:
+                new_schema = self.create_schema_object()
+                cache[schema_key] = new_schema
 
         return self.create_schema(request, schema_key, new_schema, draft)
 

@@ -13,9 +13,9 @@ def json_icontains(column, value):
     field_type = column.property.columns[0].type
 
     if isinstance(field_type, JSON):
-        return column.cast(Unicode).ilike('%{}%'.format(value))
+        return column.cast(Unicode).ilike(f'%{value}%')
     else:
-        return column.astext.ilike('%{}%'.format(value))
+        return column.astext.ilike(f'%{value}%')
 
 
 def coveredby(column, value):
@@ -26,10 +26,7 @@ def safe_array(value):
     if isinstance(value, list):
         return value
     elif isinstance(value, string_types):
-        if value != '':
-            return value.split(',')
-        else:
-            return []
+        return value.split(',') if value != '' else []
     else:
         value
 
@@ -87,11 +84,10 @@ class Filter(object):
                 return ~getattr(self.column, op[0])(op[1])
             else:
                 return getattr(self.column, op[0])(op[1])
+        elif self.exclude:
+            return ~getattr(self.column, operator)(value)
         else:
-            if self.exclude:
-                return ~getattr(self.column, operator)(value)
-            else:
-                return getattr(self.column, operator)(value)
+            return getattr(self.column, operator)(value)
 
     def apply_lookup(self, qs, value):
         criterion = self.get_loookup_criterion(value)
@@ -99,6 +95,4 @@ class Filter(object):
 
     def filter(self, qs, value):
         value = self.clean_value(value)
-        if value in EMPTY_VALUES:
-            return qs
-        return self.apply_lookup(qs, value)
+        return qs if value in EMPTY_VALUES else self.apply_lookup(qs, value)

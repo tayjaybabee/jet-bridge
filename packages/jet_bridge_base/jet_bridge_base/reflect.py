@@ -29,10 +29,7 @@ def reflect(
             "autoload_replace": autoload_replace,
             "resolve_fks": resolve_fks,
             "_extend_on": set(),
-        }
-
-        reflect_opts.update(dialect_kwargs)
-
+        } | dialect_kwargs
         if schema is None:
             schema = metadata.schema
 
@@ -45,7 +42,7 @@ def reflect(
 
         if schema is not None:
             available_w_schema = util.OrderedSet(
-                ["%s.%s" % (schema, name) for name in available]
+                [f"{schema}.{name}" for name in available]
             )
         else:
             available_w_schema = available
@@ -66,9 +63,8 @@ def reflect(
                    and only(name, metadata)
             ]
         else:
-            missing = [name for name in only if name not in available]
-            if missing:
-                s = schema and (" schema '%s'" % schema) or ""
+            if missing := [name for name in only if name not in available]:
+                s = schema and f" schema '{schema}'" or ""
                 raise exc.InvalidRequestError(
                     "Could not reflect: requested table(s) not available "
                     "in %r%s: (%s)" % (bind.engine, s, ", ".join(missing))
@@ -89,10 +85,9 @@ def reflect(
         i = 0
         for name in load:
             try:
-                logger.info('Analyzing table "{}" ({} / {})"...'.format(name, i + 1, len(load)))
+                logger.info(f'Analyzing table "{name}" ({i + 1} / {len(load)})"...')
                 table = Table(name, metadata, **reflect_opts)
 
-                args = []
                 has_pk = False
                 first_column = None
 
@@ -103,17 +98,19 @@ def reflect(
                         first_column = item
 
                 if not has_pk and first_column is not None:
-                    logger.warning('Table "{}" is missing PK: "{}" column was set as PK'.format(name, first_column.name))
+                    logger.warning(
+                        f'Table "{name}" is missing PK: "{first_column.name}" column was set as PK'
+                    )
 
                     first_column.primary_key = True
-                    args.append(first_column)
+                    args = [first_column]
                     reflect_opts['extend_existing'] = True
                     table = Table(name, metadata, *args, **reflect_opts)
                     setattr(table, '__jet_auto_pk__', True)
 
 
             except exc.UnreflectableTableError as uerr:
-                util.warn("Skipping table %s: %s" % (name, uerr))
+                util.warn(f"Skipping table {name}: {uerr}")
 
             i += 1
 
