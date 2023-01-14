@@ -20,14 +20,14 @@ class RegisterView(BaseAPIView):
         environment_type = settings.ENVIRONMENT_TYPE
 
         if settings.WEB_BASE_URL.startswith('https') and not request.full_url().startswith('https'):
-            web_base_url = 'http{}'.format(settings.WEB_BASE_URL[5:])
+            web_base_url = f'http{settings.WEB_BASE_URL[5:]}'
         else:
             web_base_url = settings.WEB_BASE_URL
 
         if settings.ENVIRONMENT:
-            url = '{}/builder/{}/{}/resources/database/create/'.format(web_base_url, settings.PROJECT, settings.ENVIRONMENT)
+            url = f'{web_base_url}/builder/{settings.PROJECT}/{settings.ENVIRONMENT}/resources/database/create/'
         else:
-            url = '{}/builder/{}/resources/database/create/'.format(web_base_url, settings.PROJECT)
+            url = f'{web_base_url}/builder/{settings.PROJECT}/resources/database/create/'
 
         parameters = [
             ['engine', settings.DATABASE_ENGINE],
@@ -40,6 +40,6 @@ class RegisterView(BaseAPIView):
         if environment_type:
             parameters.append(['environment_type', environment_type])
 
-        query_string = '&'.join(map(lambda x: '{}={}'.format(x[0], quote(x[1])), parameters))
+        query_string = '&'.join(map(lambda x: f'{x[0]}={quote(x[1])}', parameters))
 
-        return RedirectResponse('%s#%s' % (url, query_string))
+        return RedirectResponse(f'{url}#{query_string}')

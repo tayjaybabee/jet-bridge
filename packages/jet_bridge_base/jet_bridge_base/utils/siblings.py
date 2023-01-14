@@ -37,19 +37,11 @@ def get_row_siblings(Model, queryset, row_number):
         queryset.session.rollback()
         raise
 
-    if has_prev:
-        next_index = 2
-    else:
-        next_index = 1
-
+    next_index = 2 if has_prev else 1
     if next_index >= len(rows):
         next_index = None
 
-    if has_prev:
-        prev_index = 0
-    else:
-        prev_index = None
-
+    prev_index = 0 if has_prev else None
     def map_row(row):
         return dict(((pk, getattr(row, pk)),))
 
@@ -68,7 +60,4 @@ def get_model_siblings(request, Model, instance, queryset):
     queryset = apply_default_ordering(Model, queryset)
     row_number = get_row_number(Model, queryset, instance)
 
-    if not row_number:
-        return {}
-
-    return get_row_siblings(Model, queryset, row_number)
+    return get_row_siblings(Model, queryset, row_number) if row_number else {}

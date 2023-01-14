@@ -117,8 +117,7 @@ class BaseRouteView(generic.View):
 
         try:
             self.before_dispatch(request)
-            response = super(BaseRouteView, self).dispatch(request, *args, **kwargs)
-            return response
+            return super(BaseRouteView, self).dispatch(request, *args, **kwargs)
         except Exception:
             exc_type, exc, traceback = sys.exc_info()
             response = self.view.error_response(request, exc_type, exc, traceback)

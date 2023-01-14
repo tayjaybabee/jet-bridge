@@ -86,7 +86,7 @@ class Request(object):
             self.data = dict(tuples)
 
     def full_url(self):
-        return self.protocol + "://" + self.host + self.uri
+        return f"{self.protocol}://{self.host}{self.uri}"
 
     def get_argument(self, name, default=_ARG_DEFAULT, strip=True):
         return self._get_argument(name, default, self.query_arguments, strip)
@@ -98,13 +98,11 @@ class Request(object):
         values = self.get_arguments(name)
 
         if len(values) == 0:
-            value = default
+            return default
         elif len(values) == 1:
-            value = values[0]
+            return values[0]
         else:
-            value = values
-
-        return value
+            return values
 
     def get_body_argument(self, name, default=_ARG_DEFAULT, strip=True):
         return self._get_argument(name, default, self.body_arguments, strip)

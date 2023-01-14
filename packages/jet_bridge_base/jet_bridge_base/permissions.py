@@ -115,9 +115,8 @@ class HasProjectPermissions(BasePermission):
 
                 if item_type != view_permission_type or item_object_model != view_permission_object:
                     continue
-            else:
-                if item_type != view_permission_type or item_object != view_permission_object:
-                    continue
+            elif item_type != view_permission_type or item_object != view_permission_object:
+                continue
 
             return view_permission_actions in item_actions
 
@@ -131,9 +130,7 @@ class HasProjectPermissions(BasePermission):
         if not token:
             return False
 
-        bridge_settings = request.get_bridge_settings()
-
-        if bridge_settings:
+        if bridge_settings := request.get_bridge_settings():
             project_token = bridge_settings.get('token')
             project = bridge_settings.get('project')
         else:
@@ -158,14 +155,7 @@ class HasProjectPermissions(BasePermission):
             request.resource_token = project_token
 
             return self.has_view_permissions(view_permissions, user_permissions, project_token)
-        elif token['type'] == self.user_token_prefix:
-            result = project_auth(token['value'], project_token, view_permissions, token['params'])
-
-            # if result.get('warning'):
-            #     view.headers['X-Application-Warning'] = result['warning']
-
-            return result['result']
-        elif token['type'] == self.project_token_prefix:
+        elif token['type'] in [self.user_token_prefix, self.project_token_prefix]:
             result = project_auth(token['value'], project_token, view_permissions, token['params'])
 
             # if result.get('warning'):
@@ -181,11 +171,11 @@ class HasProjectPermissions(BasePermission):
 class ReadOnly(BasePermission):
 
     def has_permission(self, view, request):
-        if not settings.READ_ONLY:
-            return True
-        if request.action in ['create', 'update', 'partial_update', 'destroy']:
-            return False
-        return True
+        return (
+            request.action not in ['create', 'update', 'partial_update', 'destroy']
+            if settings.READ_ONLY
+            else True
+        )
 
 
 class AdministratorPermissions(BasePermission):
@@ -195,9 +185,7 @@ class AdministratorPermissions(BasePermission):
         if not key:
             return False
 
-        if settings.BEARER_AUTH_KEY and key == settings.BEARER_AUTH_KEY:
-            return True
-        else:
+        if not settings.BEARER_AUTH_KEY or key != settings.BEARER_AUTH_KEY:
             JWT_VERIFY_KEY = '\n'.join([line.lstrip() for line in settings.JWT_VERIFY_KEY.split('\\n')])
 
             try:
@@ -210,4 +198,4 @@ class AdministratorPermissions(BasePermission):
             if not admin:
                 return False
 
-            return True
+        return True

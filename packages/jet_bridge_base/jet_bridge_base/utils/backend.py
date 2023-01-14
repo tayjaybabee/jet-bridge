@@ -7,16 +7,16 @@ from jet_bridge_base.logger import logger
 
 
 def api_method_url(method):
-    return '{}/{}'.format(settings.API_BASE_URL, method)
+    return f'{settings.API_BASE_URL}/{method}'
 
 
 def is_project_token_activated(project_token):
     if not project_token:
         return False
 
-    url = api_method_url('project_tokens/{}/'.format(project_token))
+    url = api_method_url(f'project_tokens/{project_token}/')
     headers = {
-        'User-Agent': '{} v{}'.format(configuration.get_type(), configuration.get_version())
+        'User-Agent': f'{configuration.get_type()} v{configuration.get_version()}'
     }
 
     r = requests.request('GET', url, headers=headers)
@@ -36,7 +36,7 @@ def is_resource_token_activated(project_name, resource_token):
 
     url = api_method_url('check_resource_token/')
     headers = {
-        'User-Agent': '{} v{}'.format(configuration.get_type(), configuration.get_version())
+        'User-Agent': f'{configuration.get_type()} v{configuration.get_version()}'
     }
     data = {
         'project': project_name,
@@ -66,15 +66,14 @@ def project_auth(token, project_token, permission=None, params=None):
         'token': token
     }
     headers = {
-        'User-Agent': '{} v{}'.format(configuration.get_type(), configuration.get_version())
+        'User-Agent': f'{configuration.get_type()} v{configuration.get_version()}'
     }
 
     if permission:
-        data.update(permission)
+        data |= permission
 
-    if params:
-        if 'project_child' in params:
-            data['project_child'] = params['project_child']
+    if params and 'project_child' in params:
+        data['project_child'] = params['project_child']
 
     r = requests.request('POST', url, data=data, headers=headers)
     success = 200 <= r.status_code < 300
@@ -103,19 +102,16 @@ def get_resource_secret_tokens(project, resource, token):
     if not token:
         return []
 
-    url = api_method_url('projects/{}/resources/{}/secret_tokens/'.format(project, resource))
+    url = api_method_url(f'projects/{project}/resources/{resource}/secret_tokens/')
     headers = {
-        'Authorization': 'ProjectToken {}'.format(token),
-        'User-Agent': '{} v{}'.format(configuration.get_type(), configuration.get_version())
+        'Authorization': f'ProjectToken {token}',
+        'User-Agent': f'{configuration.get_type()} v{configuration.get_version()}',
     }
 
     r = requests.request('GET', url, headers=headers)
     success = 200 <= r.status_code < 300
 
-    if not success:
-        return []
-
-    return r.json()
+    return r.json() if success else []
 
 
 def get_secret_tokens(project_name, environment_name, resource, draft, token, user_token):
@@ -123,14 +119,14 @@ def get_secret_tokens(project_name, environment_name, resource, draft, token, us
         return []
 
     if environment_name:
-        method_url = 'projects/{}/{}/secret_tokens/'.format(project_name, environment_name)
+        method_url = f'projects/{project_name}/{environment_name}/secret_tokens/'
     else:
-        method_url = 'projects/{}/secret_tokens/'.format(project_name)
+        method_url = f'projects/{project_name}/secret_tokens/'
 
     url = api_method_url(method_url)
     headers = {
-        'Authorization': 'ProjectToken {}'.format(token),
-        'User-Agent': '{} v{}'.format(configuration.get_type(), configuration.get_version())
+        'Authorization': f'ProjectToken {token}',
+        'User-Agent': f'{configuration.get_type()} v{configuration.get_version()}',
     }
     data = {
         'resource': resource,
@@ -143,7 +139,4 @@ def get_secret_tokens(project_name, environment_name, resource, draft, token, us
     r = requests.request('POST', url, headers=headers, data=data)
     success = 200 <= r.status_code < 300
 
-    if not success:
-        return []
-
-    return r.json()
+    return r.json() if success else []

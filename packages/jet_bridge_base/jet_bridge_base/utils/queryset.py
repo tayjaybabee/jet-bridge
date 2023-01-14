@@ -54,7 +54,9 @@ def queryset_count_optimized_for_postgresql(request, db_table):
 
 def queryset_count_optimized_for_mysql(request, db_table):
     try:
-        cursor = request.session.execute(text('EXPLAIN SELECT COUNT(*) FROM `{}`'.format(db_table)))
+        cursor = request.session.execute(
+            text(f'EXPLAIN SELECT COUNT(*) FROM `{db_table}`')
+        )
         row = cursor.fetchone()
         return int(row[8])
     except SQLAlchemyError:

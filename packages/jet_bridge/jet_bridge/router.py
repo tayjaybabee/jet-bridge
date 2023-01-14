@@ -62,10 +62,10 @@ class Router(object):
         actions = route['method_mapping']
         actions = dict(filter(lambda x: hasattr(viewset, x[1]), actions.items()))
 
-        if len(actions) == 0:
+        if not actions:
             return
 
-        url = '{}{}'.format(prefix, route['path'])
+        url = f"{prefix}{route['path']}"
         self.add_handler(view, url, actions)
 
     def add_route_extra_actions(self, view, route, prefix):
@@ -84,7 +84,7 @@ class Router(object):
 
             extra_actions = dict(map(lambda x: (x, attr), bind_to_methods))
 
-            url = '{}{}{}/'.format(prefix, route['path'], attr)
+            url = f"{prefix}{route['path']}{attr}/"
             self.add_handler(view, url, extra_actions)
 
     def register(self, prefix, view):

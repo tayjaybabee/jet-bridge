@@ -57,14 +57,13 @@ def get_query_lookup_func_by_name(session, lookup_type, lookup_param, column):
             elif get_session_engine(session) == 'mysql':
                 if date_group in strftime_options:
                     return func.date_format(column, strftime_options[date_group])
-            else:
-                if date_group in strftime_options:
-                    return func.strftime(strftime_options[date_group], column)
+            elif date_group in strftime_options:
+                return func.strftime(strftime_options[date_group], column)
     except IndexError:
         pass
 
     if lookup_type:
-        print('Unsupported lookup: {}'.format(lookup_type))
+        print(f'Unsupported lookup: {lookup_type}')
 
     return column
 
@@ -83,10 +82,7 @@ class ModelGroupFilter(CharFilter):
             return qs.filter(sql.false())
 
         def group_name(i):
-            if i == 0:
-                return 'group'
-            else:
-                return 'group_{}'.format(i + 1)
+            return 'group' if i == 0 else 'group_{}'.format(i + 1)
 
         def map_lookup(column, i):
             lookup_name = value['x_lookups'][i] if i < len(value['x_lookups']) else None

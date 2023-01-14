@@ -33,15 +33,15 @@ class ImageResizeView(APIView):
             if not cache.exists(path):
                 thumbnail_full_path = cache.full_path(path)
 
-                if not external_path:
-                    if not configuration.media_exists(path):
-                        raise NotFound
-
-                    file = configuration.media_open(path)
-                else:
+                if external_path:
                     fd = urllib.request.urlopen(path)
                     file = io.BytesIO(fd.read())
 
+                elif not configuration.media_exists(path):
+                    raise NotFound
+
+                else:
+                    file = configuration.media_open(path)
                 with file:
                     cache.clear_cache_if_needed()
                     self.create_thumbnail(file, thumbnail_full_path, max_width, max_height)

@@ -74,8 +74,7 @@ class GenericAPIView(APIView):
                 request.session.rollback()
 
     def filter_queryset(self, request, queryset):
-        filter_instance = self.get_filter(request)
-        if filter_instance:
+        if filter_instance := self.get_filter(request):
             queryset = filter_instance.filter_queryset(request, queryset)
         return queryset
 

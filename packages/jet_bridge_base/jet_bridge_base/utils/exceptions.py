@@ -21,35 +21,39 @@ def serialize_validation_error(exc):
 
 
 def validation_error_from_database_error(e, model):
-    if hasattr(e, 'orig'):
-        if hasattr(e.orig, 'args') and hasattr(e.orig.args, '__getitem__'):
-            if len(e.orig.args) == 1:
-                message = e.orig.args[0]
-            elif len(e.orig.args) == 2:
-                message = e.orig.args[1]
-            else:
-                message = e.orig.args
+    if (
+        not hasattr(e, 'orig')
+        or not hasattr(e.orig, 'args')
+        or not hasattr(e.orig.args, '__getitem__')
+    ):
+        return ValidationError('Query failed')
+    if len(e.orig.args) == 1:
+        message = e.orig.args[0]
+    elif len(e.orig.args) == 2:
+        message = e.orig.args[1]
+    else:
+        message = e.orig.args
 
-            message = six.text_type(message)
+    message = six.text_type(message)
 
-            regex = [
-                [r'Key\s\((.+)\)=\((.+)\)\salready\sexists', 1, 2],  # PostgreSQL
-                [r'Duplicate\sentry\s\'(.+)\'\sfor key\s\'(.+)\'', 2, 1],  # MySQL
-                [r'UNIQUE\sconstraint\sfailed\:\s(.+)\.(.+)', 2, None]  # SQLite
-            ]
+    regex = [
+        [r'Key\s\((.+)\)=\((.+)\)\salready\sexists', 1, 2],  # PostgreSQL
+        [r'Duplicate\sentry\s\'(.+)\'\sfor key\s\'(.+)\'', 2, 1],  # MySQL
+        [r'UNIQUE\sconstraint\sfailed\:\s(.+)\.(.+)', 2, None]  # SQLite
+    ]
 
-            for (r, field_index, value_index) in regex:
-                match = re.search(r, message, re.IGNORECASE | re.MULTILINE)
+    for r, field_index, value_index in regex:
+        if match := re.search(r, message, re.IGNORECASE | re.MULTILINE):
+            mapper = inspect(model)
+            columns = dict(map(lambda x: (x.key, x), mapper.columns))
+            column_name = match[field_index]
 
-                if match:
-                    mapper = inspect(model)
-                    columns = dict(map(lambda x: (x.key, x), mapper.columns))
-                    column_name = match.group(field_index)
+            if column_name in columns:
+                error = {
+                    column_name: ValidationError(
+                        'record with the same value already exists'
+                    )
+                }
+                return ValidationError(error)
 
-                    if column_name in columns:
-                        error = dict()
-                        error[column_name] = ValidationError('record with the same value already exists')
-                        return ValidationError(error)
-
-            return ValidationError(message)
-    return ValidationError('Query failed')
+    return ValidationError(message)

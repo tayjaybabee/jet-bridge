@@ -48,8 +48,9 @@ class JetBridgeStrategy(BaseStrategy):
         self.request_handler.write(content)
 
     def session_get(self, name, default=None, secure=True):
-        value = configuration.session_get(self.request, name, default, secure=secure)
-        if value:
+        if value := configuration.session_get(
+            self.request, name, default, secure=secure
+        ):
             return value
         return default
 

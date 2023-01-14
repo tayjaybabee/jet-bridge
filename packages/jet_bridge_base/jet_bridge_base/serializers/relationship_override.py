@@ -28,8 +28,8 @@ class ModelDescriptionRelationOverridesSerializer(Serializer):
         name = '__'.join([local_field, 'to', related_model, related_field])
 
         if name in mapper.columns:
-            name = name + '_relation'
-            logger.warning('Already detected column name, using {}'.format(name))
+            name += '_relation'
+            logger.warning(f'Already detected column name, using {name}')
 
         return name
 
@@ -37,8 +37,8 @@ class ModelDescriptionRelationOverridesSerializer(Serializer):
         name = '__'.join([related_model, related_field, 'to', local_field])
 
         if name in mapper.columns:
-            name = name + '_relation'
-            logger.warning('Already detected column name, using {}'.format(name))
+            name += '_relation'
+            logger.warning(f'Already detected column name, using {name}')
 
         return name
 
@@ -47,7 +47,7 @@ class ModelDescriptionRelationOverridesSerializer(Serializer):
 
         Model = self.get_model(request, attrs['model'])
         if Model is None:
-            raise ValidationError('Unknown relation override model: {}'.format(attrs['model']))
+            raise ValidationError(f"Unknown relation override model: {attrs['model']}")
 
         mapper = inspect(Model)
 
@@ -57,7 +57,7 @@ class ModelDescriptionRelationOverridesSerializer(Serializer):
             elif item['direction'] == 'ONETOMANY':
                 item['name'] = self.generate_one_to_many_name(mapper, item['local_field'], item['related_model'], item['related_field'])
             else:
-                raise ValidationError('Unknown relation direction: {}'.format(item['direction']))
+                raise ValidationError(f"Unknown relation direction: {item['direction']}")
 
         return attrs
 
@@ -71,11 +71,17 @@ class ModelDescriptionRelationOverridesSerializer(Serializer):
                 for item in self.validated_data:
                     set_overrides = sorted(item['relations'], key=lambda x: x['name'])
 
-                    existing_overrides = session.query(ModelRelationOverrideModel).filter(
-                        ModelRelationOverrideModel.connection_id == connection['id'],
-                        ModelRelationOverrideModel.model == item['model'],
-                        draft == draft
-                    ).order_by(ModelRelationOverrideModel.name).all()
+                    existing_overrides = (
+                        session.query(ModelRelationOverrideModel)
+                        .filter(
+                            ModelRelationOverrideModel.connection_id
+                            == connection['id'],
+                            ModelRelationOverrideModel.model == item['model'],
+                            True,
+                        )
+                        .order_by(ModelRelationOverrideModel.name)
+                        .all()
+                    )
                     existing_overrides = list(existing_overrides)
 
                     for i, override in enumerate(set_overrides):

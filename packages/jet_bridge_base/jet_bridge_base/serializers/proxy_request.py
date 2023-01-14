@@ -153,9 +153,8 @@ class ProxyRequestSerializer(Serializer):
         return instances
 
     def validate(self, attrs):
-        if 'resource' in attrs:
-            if 'project' not in attrs:
-                raise ValidationError('"project" is required when specifying "resource"')
+        if 'resource' in attrs and 'project' not in attrs:
+            raise ValidationError('"project" is required when specifying "resource"')
 
         if 'secret_tokens' in attrs and len(attrs['secret_tokens']):
             if 'resource' not in attrs:
@@ -248,8 +247,6 @@ class ProxyRequestSerializer(Serializer):
                 if header in response_headers:
                     del response_headers[header]
 
-            response = Response(data=r.content, status=r.status_code, headers=response_headers)
-
-            return response
+            return Response(data=r.content, status=r.status_code, headers=response_headers)
         except Exception as e:
             raise ValidationError(e)

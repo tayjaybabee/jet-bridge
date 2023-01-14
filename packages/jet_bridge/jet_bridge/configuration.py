@@ -7,7 +7,7 @@ from jet_bridge import settings, VERSION
 
 from six.moves.http_cookies import Morsel
 
-Morsel._reserved[str('samesite')] = str('SameSite')
+Morsel._reserved['samesite'] = 'SameSite'
 
 
 class JetBridgeConfiguration(Configuration):
@@ -67,7 +67,7 @@ class JetBridgeConfiguration(Configuration):
         file_root, file_ext = os.path.splitext(file_name)
 
         while os.path.exists(os.path.join(settings.MEDIA_ROOT, path)):
-            path = os.path.join(dir_name, '%s_%s%s' % (file_root, get_random_string(7), file_ext))
+            path = os.path.join(dir_name, f'{file_root}_{get_random_string(7)}{file_ext}')
 
         return path
 
@@ -116,12 +116,11 @@ class JetBridgeConfiguration(Configuration):
         os.remove(absolute_path)
 
     def media_url(self, path, request):
-        if settings.MEDIA_BASE_URL:
-            url = '{}{}'.format(settings.MEDIA_BASE_URL, path)
-        else:
-            url = request.protocol + "://" + request.host + '/media/' + path
-
-        return url
+        return (
+            f'{settings.MEDIA_BASE_URL}{path}'
+            if settings.MEDIA_BASE_URL
+            else f"{request.protocol}://{request.host}/media/{path}"
+        )
 
     def session_get(self, request, name, default=None, decode=True, secure=True):
         if secure:

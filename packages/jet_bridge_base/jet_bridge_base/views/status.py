@@ -18,48 +18,45 @@ class StatusView(BaseAPIView):
         if not schema:
             return {'status': 'no_schema'}
 
-        instance = schema.get('instance')
-
-        if instance:
-            types_count = len(instance._type_map.values())
-            filters_count = 0
-            filters_fields_count = 0
-            filters_relationships_count = 0
-            lookups_count = 0
-            lookups_fields_count = 0
-            lookups_relationships_count = 0
-            get_schema_time = schema.get('get_schema_time')
-
-            for item in instance._type_map.values():
-                if not hasattr(item, 'graphene_type'):
-                    continue
-
-                if issubclass_safe(item.graphene_type, ModelFiltersType):
-                    filters_count += 1
-                elif issubclass_safe(item.graphene_type, ModelFiltersFieldType):
-                    filters_fields_count += 1
-                elif issubclass_safe(item.graphene_type, ModelFiltersRelationshipType):
-                    filters_relationships_count += 1
-                elif issubclass_safe(item.graphene_type, ModelLookupsType):
-                    lookups_count += 1
-                elif issubclass_safe(item.graphene_type, ModelLookupsFieldType):
-                    lookups_fields_count += 1
-                elif issubclass_safe(item.graphene_type, ModelLookupsRelationshipType):
-                    lookups_relationships_count += 1
-
-            return {
-                'status': 'ok',
-                'types': types_count,
-                'filters': filters_count,
-                'filters_fields': filters_fields_count,
-                'filters_relationships': filters_relationships_count,
-                'lookups': lookups_count,
-                'lookups_fields': lookups_fields_count,
-                'lookups_relationships': lookups_relationships_count,
-                'get_schema_time': get_schema_time
-            }
-        else:
+        if not (instance := schema.get('instance')):
             return {'status': 'pending'}
+        types_count = len(instance._type_map.values())
+        filters_count = 0
+        filters_fields_count = 0
+        filters_relationships_count = 0
+        lookups_count = 0
+        lookups_fields_count = 0
+        lookups_relationships_count = 0
+        get_schema_time = schema.get('get_schema_time')
+
+        for item in instance._type_map.values():
+            if not hasattr(item, 'graphene_type'):
+                continue
+
+            if issubclass_safe(item.graphene_type, ModelFiltersType):
+                filters_count += 1
+            elif issubclass_safe(item.graphene_type, ModelFiltersFieldType):
+                filters_fields_count += 1
+            elif issubclass_safe(item.graphene_type, ModelFiltersRelationshipType):
+                filters_relationships_count += 1
+            elif issubclass_safe(item.graphene_type, ModelLookupsType):
+                lookups_count += 1
+            elif issubclass_safe(item.graphene_type, ModelLookupsFieldType):
+                lookups_fields_count += 1
+            elif issubclass_safe(item.graphene_type, ModelLookupsRelationshipType):
+                lookups_relationships_count += 1
+
+        return {
+            'status': 'ok',
+            'types': types_count,
+            'filters': filters_count,
+            'filters_fields': filters_fields_count,
+            'filters_relationships': filters_relationships_count,
+            'lookups': lookups_count,
+            'lookups_fields': lookups_fields_count,
+            'lookups_relationships': lookups_relationships_count,
+            'get_schema_time': get_schema_time
+        }
 
     def map_tunnel(self, tunnel):
         if not tunnel:
@@ -67,8 +64,8 @@ class StatusView(BaseAPIView):
 
         return {
             'is_active': tunnel.is_active,
-            'local_address': '{}:{}'.format(tunnel.local_bind_host, tunnel.local_bind_port),
-            'remote_address': '{}:{}'.format(tunnel.ssh_host, tunnel.ssh_port)
+            'local_address': f'{tunnel.local_bind_host}:{tunnel.local_bind_port}',
+            'remote_address': f'{tunnel.ssh_host}:{tunnel.ssh_port}',
         }
 
     def map_connection(self, connection):

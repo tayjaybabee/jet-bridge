@@ -98,15 +98,15 @@ def clean_keys(obj):
 
 class GraphQLSchemaGenerator(object):
     def __init__(self):
-        self.relationships_by_name = dict()
-        self.relationships_by_clean_name = dict()
-        self.model_filters_types = dict()
-        self.model_filters_field_types = dict()
-        self.model_filters_relationship_types = dict()
-        self.model_lookups_types = dict()
-        self.model_lookups_field_types = dict()
-        self.model_lookups_relationship_types = dict()
-        self.model_sort_types = dict()
+        self.relationships_by_name = {}
+        self.relationships_by_clean_name = {}
+        self.model_filters_types = {}
+        self.model_filters_field_types = {}
+        self.model_filters_relationship_types = {}
+        self.model_lookups_types = {}
+        self.model_lookups_field_types = {}
+        self.model_lookups_relationship_types = {}
+        self.model_sort_types = {}
 
     def get_queryset(self, request, Model, only_columns=None):
         mapper = inspect(Model)
@@ -202,7 +202,7 @@ class GraphQLSchemaGenerator(object):
                 local_column = get_set_first(relationship.local_columns)
                 relation_column = get_set_first(relationship.remote_side)
 
-                if relationship.direction == MANYTOONE:
+                if relationship.direction in [MANYTOONE, ONETOMANY]:
                     related_name = relationship.mapper.selectable.name
                     related_model = MappedBase.classes.get(related_name)
 
@@ -216,21 +216,6 @@ class GraphQLSchemaGenerator(object):
                         'related_column': relation_column,
                         'related_column_name': relation_column.name if relation_column is not None else None
                     }
-                elif relationship.direction == ONETOMANY:
-                    related_name = relationship.mapper.selectable.name
-                    related_model = MappedBase.classes.get(related_name)
-
-                    model_relationships[relationship.key] = {
-                        'name': relationship.key,
-                        'direction': relationship.direction,
-                        'local_column': local_column,
-                        'local_column_name': local_column.name if local_column is not None else None,
-                        'related_model': related_model,
-                        'related_mapper': relationship.mapper,
-                        'related_column': relation_column,
-                        'related_column_name': relation_column.name if relation_column is not None else None
-                    }
-
             result[name] = model_relationships
 
         return result
@@ -381,11 +366,10 @@ class GraphQLSchemaGenerator(object):
             relationship = self.get_model_relationships_by_clean_name(mapper).get(lookup_name)
 
             if relationship is not None:
-                lookup_result = {}
                 local_column = relationship['local_column']
                 lookup_values = sorted(unique(flatten(map(lambda x: getattr(x, local_column.name), models))), key=any_type_sorter)
 
-                lookup_result['return'] = lookup_data.get('return', False)
+                lookup_result = {'return': lookup_data.get('return', False)}
                 lookup_result['return_list'] = lookup_data.get('returnList', False)
                 lookup_result['Model'] = Model
                 lookup_result['mapper'] = mapper
@@ -407,9 +391,9 @@ class GraphQLSchemaGenerator(object):
                         aggregate_func = get_query_func_by_name(lookup_data['aggregate']['func'], aggregate_column)
 
                         groups = request.session\
-                            .query(relation_column, aggregate_func)\
-                            .filter(relation_column.in_(lookup_values))\
-                            .group_by(relation_column)
+                                .query(relation_column, aggregate_func)\
+                                .filter(relation_column.in_(lookup_values))\
+                                .group_by(relation_column)
                         groups_dict = dict(groups)
 
                         lookup_result['aggregated_values'] = list(map(lambda x: {
@@ -424,9 +408,9 @@ class GraphQLSchemaGenerator(object):
                     relation_column = relationship['related_column']
 
                     related_models = request.session\
-                        .query(relation_model)\
-                        .filter(relation_column.in_(lookup_values))\
-                        .all()
+                            .query(relation_model)\
+                            .filter(relation_column.in_(lookup_values))\
+                            .all()
                     related_models = list(related_models)
 
                     lookup_result['related'] = self.get_models_lookup(
@@ -441,10 +425,9 @@ class GraphQLSchemaGenerator(object):
 
                 result[lookup_name] = lookup_result
             elif column is not None:
-                lookup_result = {}
                 lookup_values = sorted(unique(flatten(map(lambda x: getattr(x, column.name), models))), key=any_type_sorter)
 
-                lookup_result['return'] = lookup_data.get('return', False)
+                lookup_result = {'return': lookup_data.get('return', False)}
                 lookup_result['return_list'] = lookup_data.get('returnList', False)
                 lookup_result['Model'] = Model
                 lookup_result['mapper'] = mapper
@@ -461,9 +444,9 @@ class GraphQLSchemaGenerator(object):
                         relation_column = relationship['related_column']
 
                         related_models = request.session\
-                            .query(relation_model)\
-                            .filter(relation_column.in_(lookup_values))\
-                            .all()
+                                .query(relation_model)\
+                                .filter(relation_column.in_(lookup_values))\
+                                .all()
                         related_models = list(related_models)
 
                         lookup_result['related'] = self.get_models_lookup(
@@ -565,8 +548,11 @@ class GraphQLSchemaGenerator(object):
     def get_model_filters_type(self, MappedBase, mapper, depth=1):
         with_relations = depth <= 4
         model_name = clean_name(mapper.selectable.name)
-        cls_name = 'Model{}Depth{}NestedFiltersType'.format(model_name, depth) if with_relations \
-            else 'Model{}Depth{}FiltersType'.format(model_name, depth)
+        cls_name = (
+            f'Model{model_name}Depth{depth}NestedFiltersType'
+            if with_relations
+            else f'Model{model_name}Depth{depth}FiltersType'
+        )
 
         if cls_name in self.model_filters_types:
             return graphene.List(self.model_filters_types[cls_name])
@@ -596,8 +582,11 @@ class GraphQLSchemaGenerator(object):
     def get_model_field_filters_type(self, MappedBase, mapper, column, with_relations, depth=1):
         model_name = clean_name(mapper.selectable.name)
         column_name = clean_name(column.name)
-        cls_name = 'Model{}Column{}Depth{}NestedFiltersType'.format(model_name, column_name, depth) if with_relations \
-            else 'Model{}Column{}Depth{}FiltersType'.format(model_name, column_name, depth)
+        cls_name = (
+            f'Model{model_name}Column{column_name}Depth{depth}NestedFiltersType'
+            if with_relations
+            else f'Model{model_name}Column{column_name}Depth{depth}FiltersType'
+        )
 
         if cls_name in self.model_filters_field_types:
             return self.model_filters_field_types[cls_name]
@@ -627,17 +616,17 @@ class GraphQLSchemaGenerator(object):
     def get_model_relationship_filters_type(self, MappedBase, mapper, relationship, with_relations, depth=1):
         model_name = clean_name(mapper.selectable.name)
         relationship_key = clean_name(relationship['name'])
-        cls_name = 'Model{}Column{}Depth{}NestedRelationshipType'.format(model_name, relationship_key, depth) if with_relations \
-            else 'Model{}Column{}Depth{}RelationshipType'.format(model_name, relationship_key, depth)
+        cls_name = (
+            f'Model{model_name}Column{relationship_key}Depth{depth}NestedRelationshipType'
+            if with_relations
+            else f'Model{model_name}Column{relationship_key}Depth{depth}RelationshipType'
+        )
 
         if cls_name in self.model_filters_relationship_types:
             return self.model_filters_relationship_types[cls_name]
 
-        attrs = {}
-
         lookups_type = self.get_model_filters_type(MappedBase, relationship['related_mapper'], depth + 1)
-        attrs['relation'] = lookups_type
-
+        attrs = {'relation': lookups_type}
         cls = type(cls_name, (ModelFiltersRelationshipType,), attrs)
         self.model_filters_relationship_types[cls_name] = cls
         return cls
@@ -645,8 +634,11 @@ class GraphQLSchemaGenerator(object):
     def get_model_lookups_type(self, MappedBase, mapper, depth=1):
         with_relations = depth <= 4
         model_name = clean_name(mapper.selectable.name)
-        cls_name = 'Model{}Depth{}NestedLookupsType'.format(model_name, depth) if with_relations \
-            else 'Model{}Depth{}LookupsType'.format(model_name, depth)
+        cls_name = (
+            f'Model{model_name}Depth{depth}NestedLookupsType'
+            if with_relations
+            else f'Model{model_name}Depth{depth}LookupsType'
+        )
 
         if cls_name in self.model_lookups_types:
             return self.model_lookups_types[cls_name]
@@ -674,8 +666,11 @@ class GraphQLSchemaGenerator(object):
     def get_model_field_lookups_type(self, MappedBase, mapper, column, with_relations, depth=1):
         model_name = clean_name(mapper.selectable.name)
         column_name = clean_name(column.name)
-        cls_name = 'Model{}Column{}Depth{}NestedLookupsFieldType'.format(model_name, column_name, depth) if with_relations \
-            else 'Model{}Column{}Depth{}LookupsFieldType'.format(model_name, column_name, depth)
+        cls_name = (
+            f'Model{model_name}Column{column_name}Depth{depth}NestedLookupsFieldType'
+            if with_relations
+            else f'Model{model_name}Column{column_name}Depth{depth}LookupsFieldType'
+        )
 
         if cls_name in self.model_lookups_field_types:
             return self.model_lookups_field_types[cls_name]
@@ -702,8 +697,11 @@ class GraphQLSchemaGenerator(object):
     def get_model_relationship_lookups_type(self, MappedBase, mapper, relationship, with_relations, depth=1):
         model_name = clean_name(mapper.selectable.name)
         relationship_key = clean_name(relationship['name'])
-        cls_name = 'Model{}Column{}Depth{}NestedLookupsRelationshipType'.format(model_name, relationship_key, depth) if with_relations \
-            else 'Model{}Column{}Depth{}LookupsRelationshipType'.format(model_name, relationship_key, depth)
+        cls_name = (
+            f'Model{model_name}Column{relationship_key}Depth{depth}NestedLookupsRelationshipType'
+            if with_relations
+            else f'Model{model_name}Column{relationship_key}Depth{depth}LookupsRelationshipType'
+        )
 
         if cls_name in self.model_lookups_relationship_types:
             return self.model_lookups_relationship_types[cls_name]
@@ -721,7 +719,7 @@ class GraphQLSchemaGenerator(object):
 
     def get_model_sort_type(self, mapper):
         model_name = clean_name(mapper.selectable.name)
-        cls_name = 'Model{}SortType'.format(model_name)
+        cls_name = f'Model{model_name}SortType'
 
         if cls_name in self.model_sort_types:
             return graphene.List(self.model_sort_types[cls_name])
@@ -744,22 +742,18 @@ class GraphQLSchemaGenerator(object):
             attr_name = clean_name(column.name)
             attrs[attr_name] = RawScalar()
 
-        return type('Model{}RecordAttrsType'.format(name), (ModelAttrsType,), attrs)
+        return type(f'Model{name}RecordAttrsType', (ModelAttrsType,), attrs)
 
     def get_selections(self, info, path):
-        i = 0
         current_field = info.field_asts[0]
 
-        for path_item in path:
+        for i, path_item in enumerate(path):
             for selection in current_field.selection_set.selections:
                 if selection.name.value == path_item:
                     if i == len(path) - 1:
                         return selection.selection_set.selections
-                    else:
-                        current_field = selection
-                        break
-
-            i += 1
+                    current_field = selection
+                    break
 
     def resolve_model_list(self, MappedBase, Model, mapper,info, filters=None, lookups=None, sort=None, pagination=None, search=None):
         try:

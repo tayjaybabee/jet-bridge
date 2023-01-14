@@ -20,37 +20,34 @@ from jet_bridge.settings import missing_options, required_options_without_defaul
 
 
 def main():
-    args = sys.argv[1:]
-
-    if 'ARGS' in os.environ:
-        args = os.environ['ARGS'].split(' ')
-
+    args = os.environ['ARGS'].split(' ') if 'ARGS' in os.environ else sys.argv[1:]
     logger.info(datetime.now().strftime('%B %d, %Y - %H:%M:%S %Z'))
-    logger.info('Jet Bridge version {}'.format(VERSION))
+    logger.info(f'Jet Bridge version {VERSION}')
 
     if (len(args) >= 1 and args[0] == 'config') or missing_options == required_options_without_default:
         from jet_bridge.utils.create_config import create_config
         create_config(missing_options == required_options_without_default)
         return
     elif missing_options and len(missing_options) < len(required_options_without_default):
-        logger.info('Required options are not specified: {}'.format(', '.join(missing_options)))
+        logger.info(
+            f"Required options are not specified: {', '.join(missing_options)}"
+        )
         return
 
     address = 'localhost' if settings.ADDRESS == '0.0.0.0' else settings.ADDRESS
-    url = 'http://{}:{}/'.format(address, settings.PORT)
-    api_url = '{}api/'.format(url)
+    url = f'http://{address}:{settings.PORT}/'
+    api_url = f'{url}api/'
 
-    if len(args) >= 1:
-        if args[0] == 'check_token':
-            check_token_command(api_url)
-            return
+    if len(args) >= 1 and args[0] == 'check_token':
+        check_token_command(api_url)
+        return
 
     connect_database_from_settings()
 
     from jet_bridge.app import make_app
 
     app = make_app()
-    workers = settings.WORKERS if not settings.DEBUG else 1
+    workers = 1 if settings.DEBUG else settings.WORKERS
     server = HTTPServer(app)
     server.bind(settings.PORT, settings.ADDRESS)
     server.start(workers)
@@ -58,7 +55,7 @@ def main():
     if settings.WORKERS > 1 and settings.DEBUG:
         logger.warning('Multiple workers are not supported in DEBUG mode')
 
-    logger.info('Starting server at {} (WORKERS: {})'.format(url, workers))
+    logger.info(f'Starting server at {url} (WORKERS: {workers})')
 
     if settings.DEBUG:
         logger.warning('Server is running in DEBUG mode')

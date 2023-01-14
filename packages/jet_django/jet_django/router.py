@@ -64,11 +64,11 @@ class Router(object):
         actions = route['method_mapping']
         actions = dict(filter(lambda x: hasattr(viewset, x[1]), actions.items()))
 
-        if len(actions) == 0:
+        if not actions:
             return
 
-        path = '{}{}'.format(prefix_path, route['path'])
-        regex = '{}{}'.format(prefix_regex, route['regex'])
+        path = f"{prefix_path}{route['path']}"
+        regex = f"{prefix_regex}{route['regex']}"
         self.add_handler(view, path, regex, actions)
 
     def add_route_extra_actions(self, view, route, prefix_path, prefix_regex):
@@ -87,8 +87,8 @@ class Router(object):
 
             extra_actions = dict(map(lambda x: (x, attr), bind_to_methods))
 
-            path = '{}{}{}/'.format(prefix_path, route['path'], attr)
-            regex = '{}{}{}/'.format(prefix_regex, route['regex'], attr)
+            path = f"{prefix_path}{route['path']}{attr}/"
+            regex = f"{prefix_regex}{route['regex']}{attr}/"
             self.add_handler(view, path, regex, extra_actions)
 
     def register(self, prefix_path, prefix_regex, view):

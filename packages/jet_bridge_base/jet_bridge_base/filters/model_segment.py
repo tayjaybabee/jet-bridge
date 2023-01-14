@@ -9,6 +9,8 @@ def get_model_segment_filter(request, Model):
     mapper = inspect(Model)
     primary_key = mapper.primary_key[0].name
 
+
+
     class ModelSegmentFilter(CharFilter):
         def filter(self, qs, value):
             value = self.clean_value(value)
@@ -22,7 +24,7 @@ def get_model_segment_filter(request, Model):
 
             items = list(filter(lambda x: x.get('name') == value, body.get('segments', [])))
 
-            if len(items) == 0:
+            if not items:
                 return qs.filter(sql.false())
 
             query = items[0].get('query')
@@ -33,11 +35,12 @@ def get_model_segment_filter(request, Model):
             columns = list(result['columns'])
             rows = result['data']
 
-            if len(columns) == 0 or len(rows) == 0:
+            if not columns or len(rows) == 0:
                 return qs.filter(sql.false())
 
             ids = list(map(lambda x: list(x)[0], rows))
 
             return qs.filter(getattr(Model, primary_key).in_(ids))
+
 
     return ModelSegmentFilter

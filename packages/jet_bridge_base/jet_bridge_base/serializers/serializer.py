@@ -74,26 +74,20 @@ class Serializer(Field):
         return list(filter(lambda x: not x.read_only, self.fields))
 
     def run_validation(self, value):
-        if value is empty:
-            if self.required:
-                # raise ValidationError('Field is required')
-                self.error('required')
+        if value is empty and self.required:
+            # raise ValidationError('Field is required')
+            self.error('required')
 
         value = self.to_internal_value(value)
 
-        if self.many:
-            try:
+        try:
+            if self.many:
                 value = list(map(lambda x: self.validate(x), value))
-                assert value is not None, '.validate() should return the validated data'
-            except ValidationError as e:
-                raise e
-        else:
-            try:
+            else:
                 value = self.validate(value)
-                assert value is not None, '.validate() should return the validated data'
-            except ValidationError as e:
-                raise e
-
+            assert value is not None, '.validate() should return the validated data'
+        except ValidationError as e:
+            raise e
         return value
 
     def is_valid(self, raise_exception=False):
@@ -116,11 +110,10 @@ class Serializer(Field):
         for field in self.writable_fields:
             field_value = field.get_value(value)
 
-            if field_value is empty:
-                if self.partial or not field.required:
-                    continue
+            if field_value is empty and (self.partial or not field.required):
+                continue
 
-            validate_method = getattr(self, 'validate_' + field.field_name, None)
+            validate_method = getattr(self, f'validate_{field.field_name}', None)
 
             try:
                 validated_value = field.run_validation(field_value)

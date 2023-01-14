@@ -55,7 +55,7 @@ def build_engine_url(conf, tunnel=None):
 
         try:
             base64.b64decode(conf.get('password'))
-            url.append('?credentials_base64={}'.format(conf.get('password')))
+            url.append(f"?credentials_base64={conf.get('password')}")
 
             if conf.get('extra'):
                 url.append('&')
@@ -71,9 +71,7 @@ def build_engine_url(conf, tunnel=None):
 
         url.append('@')
 
-        url.append(str(conf.get('host')))
-        url.append('/')
-
+        url.extend((str(conf.get('host')), '/'))
         url.append(str(conf.get('name')))
 
         if conf.get('extra'):
@@ -238,9 +236,9 @@ def get_connection_name(conf, schema):
     if connection_name:
         connection_name = connection_name.replace(password_token, '********')
     if schema:
-        connection_name += ':{}'.format(schema)
+        connection_name += f':{schema}'
     if is_tunnel_connection(conf):
-        connection_name += ' (via {}@{}:{})'.format(conf.get('ssh_user'), conf.get('ssh_host'), conf.get('ssh_port'))
+        connection_name += f" (via {conf.get('ssh_user')}@{conf.get('ssh_host')}:{conf.get('ssh_port')})"
 
     return connection_name
 
@@ -251,7 +249,7 @@ def wait_pending_connection(connection_id, connection_name):
 
     pending_connection = pending_connections[connection_id]
 
-    logger.info('Waiting database connection "{}"...'.format(connection_name))
+    logger.info(f'Waiting database connection "{connection_name}"...')
 
     connected_condition = pending_connection['connected']
     with connected_condition:
@@ -259,10 +257,10 @@ def wait_pending_connection(connection_id, connection_name):
         connected_condition.wait(timeout=timeout)
 
     if connection_id in connections:
-        logger.info('Found database connection "{}"'.format(connection_name))
+        logger.info(f'Found database connection "{connection_name}"')
         return connections[connection_id]
     else:
-        logger.info('Not found database connection "{}"'.format(connection_name))
+        logger.info(f'Not found database connection "{connection_name}"')
 
 
 def create_connection_engine(conf, tunnel):
@@ -296,9 +294,8 @@ def get_connection_only_predicate(conf):
     def only(table, meta):
         if conf.get('only') is not None and table not in conf.get('only'):
             return False
-        if conf.get('except') is not None and table in conf.get('except'):
-            return False
-        return True
+        return conf.get('except') is None or table not in conf.get('except')
+
     return only
 
 
@@ -317,8 +314,9 @@ def connect_database(conf):
     schema = get_connection_schema(conf)
     connection_name = get_connection_name(conf, schema)
 
-    existing_connection = wait_pending_connection(connection_id, connection_name)
-    if existing_connection:
+    if existing_connection := wait_pending_connection(
+        connection_id, connection_name
+    ):
         return existing_connection
 
     init_start = datetime.now()
@@ -347,17 +345,17 @@ def connect_database(conf):
         Session = scoped_session(sessionmaker(bind=engine))
         session = Session()
 
-        logger.info('Connecting to database "{}"...'.format(connection_name))
+        logger.info(f'Connecting to database "{connection_name}"...')
 
         connect_start = time.time()
         with session.connection() as connection:
             connect_end = time.time()
             connect_time = round(connect_end - connect_start, 3)
 
-            logger.info('Getting db types for "{}"...'.format(connection_name))
+            logger.info(f'Getting db types for "{connection_name}"...')
             type_code_to_sql_type = fetch_type_code_to_sql_type(session)
 
-            logger.info('Getting schema for "{}"...'.format(connection_name))
+            logger.info(f'Getting schema for "{connection_name}"...')
 
             reflect_start = time.time()
 
@@ -368,14 +366,16 @@ def connect_database(conf):
             reflect_end = time.time()
             reflect_time = round(reflect_end - reflect_start, 3)
 
-            logger.info('Connected to "{}"'.format(connection_name))
+            logger.info(f'Connected to "{connection_name}"')
 
             MappedBase = automap_base(metadata=metadata)
             load_mapped_base(MappedBase)
 
             for table_name, table in MappedBase.metadata.tables.items():
                 if len(table.primary_key.columns) == 0 and table_name not in MappedBase.classes:
-                    logger.warning('Table "{}" does not have primary key and will be ignored'.format(table_name))
+                    logger.warning(
+                        f'Table "{table_name}" does not have primary key and will be ignored'
+                    )
 
             connections[connection_id] = {
                 'id': connection_id,
@@ -463,36 +463,32 @@ def get_settings_conf():
 
 
 def get_request_conf(request):
-    bridge_settings = request.get_bridge_settings()
-
-    if not bridge_settings:
+    if bridge_settings := request.get_bridge_settings():
+        return {
+            'engine': bridge_settings.get('database_engine'),
+            'host': bridge_settings.get('database_host'),
+            'port': bridge_settings.get('database_port'),
+            'name': bridge_settings.get('database_name'),
+            'user': bridge_settings.get('database_user'),
+            'password': bridge_settings.get('database_password'),
+            'extra': bridge_settings.get('database_extra'),
+            'connections': bridge_settings.get('database_connections', 50),
+            'only': bridge_settings.get('database_only'),
+            'except': bridge_settings.get('database_except'),
+            'schema': bridge_settings.get('database_schema'),
+            'ssh_host': bridge_settings.get('database_ssh_host'),
+            'ssh_port': bridge_settings.get('database_ssh_port'),
+            'ssh_user': bridge_settings.get('database_ssh_user'),
+            'ssh_private_key': bridge_settings.get('database_ssh_private_key'),
+            'project': bridge_settings.get('project'),
+            'token': bridge_settings.get('token'),
+        }
+    else:
         return
-
-    return {
-        'engine': bridge_settings.get('database_engine'),
-        'host': bridge_settings.get('database_host'),
-        'port': bridge_settings.get('database_port'),
-        'name': bridge_settings.get('database_name'),
-        'user': bridge_settings.get('database_user'),
-        'password': bridge_settings.get('database_password'),
-        'extra': bridge_settings.get('database_extra'),
-        'connections': bridge_settings.get('database_connections', 50),
-        'only': bridge_settings.get('database_only'),
-        'except': bridge_settings.get('database_except'),
-        'schema': bridge_settings.get('database_schema'),
-        'ssh_host': bridge_settings.get('database_ssh_host'),
-        'ssh_port': bridge_settings.get('database_ssh_port'),
-        'ssh_user': bridge_settings.get('database_ssh_user'),
-        'ssh_private_key': bridge_settings.get('database_ssh_private_key'),
-        'project': bridge_settings.get('project'),
-        'token': bridge_settings.get('token'),
-    }
 
 
 def get_conf(request):
-    request_conf = get_request_conf(request)
-
-    if request_conf:
+    if request_conf := get_request_conf(request):
         return request_conf
     else:
         return get_settings_conf()
@@ -509,31 +505,31 @@ def get_request_connection(request):
 
 
 def create_session(request):
-    connection = get_request_connection(request)
-    if not connection:
+    if connection := get_request_connection(request):
+        return connection['Session']()
+    else:
         return
-    return connection['Session']()
 
 
 def get_mapped_base(request):
-    connection = get_request_connection(request)
-    if not connection:
+    if connection := get_request_connection(request):
+        return connection['MappedBase']
+    else:
         return
-    return connection['MappedBase']
 
 
 def get_engine(request):
-    connection = get_request_connection(request)
-    if not connection:
+    if connection := get_request_connection(request):
+        return connection['engine']
+    else:
         return
-    return connection['engine']
 
 
 def get_type_code_to_sql_type(request):
-    connection = get_request_connection(request)
-    if not connection:
+    if connection := get_request_connection(request):
+        return connection['type_code_to_sql_type']
+    else:
         return
-    return connection['type_code_to_sql_type']
 
 
 @contextlib.contextmanager
@@ -592,7 +588,7 @@ def load_mapped_base(MappedBase, clear=False):
             name = referred_cls.__name__.lower()
 
         if name in constraint.parent.columns:
-            name = name + '_relation'
+            name = f'{name}_relation'
             logger.warning('Already detected column name, using {}'.format(name))
 
         return name
@@ -605,7 +601,7 @@ def load_mapped_base(MappedBase, clear=False):
             name = referred_cls.__name__.lower()
 
         if name in constraint.parent.columns:
-            name = name + '_relation'
+            name = f'{name}_relation'
             logger.warning('Already detected column name, using {}'.format(name))
 
         return name

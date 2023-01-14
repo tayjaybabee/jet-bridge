@@ -14,7 +14,7 @@ def track_model(request, model, action, uid, model_data):
     if request.project is None or request.environment is None or request.resource_token is None:
         return
 
-    url = '{}/model_change'.format(settings.TRACK_MODELS_ENDPOINT)
+    url = f'{settings.TRACK_MODELS_ENDPOINT}/model_change'
     headers = {
         'Content-Type': 'application/json'
     }

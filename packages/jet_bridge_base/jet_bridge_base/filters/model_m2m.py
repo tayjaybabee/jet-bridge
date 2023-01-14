@@ -7,6 +7,8 @@ from jet_bridge_base.filters.filter import EMPTY_VALUES
 def get_model_m2m_filter(Model):
     mapper = inspect(Model)
 
+
+
     class ModelM2MFilter(CharFilter):
 
         def filter(self, qs, value):
@@ -23,16 +25,15 @@ def get_model_m2m_filter(Model):
             relations = []
 
             for relationship in mapper.relationships:
-                for sub_relationship in relationship.mapper.relationships:
-                    if sub_relationship.table.name != relation_name:
-                        continue
-
-                    relations.append({
+                relations.extend(
+                    {
                         'relationship': relationship,
-                        'sub_relationship': sub_relationship
-                    })
-
-            if len(relations) == 0:
+                        'sub_relationship': sub_relationship,
+                    }
+                    for sub_relationship in relationship.mapper.relationships
+                    if sub_relationship.table.name == relation_name
+                )
+            if not relations:
                 return qs.filter(sql.false())
 
             relation = relations[0]
@@ -44,5 +45,6 @@ def get_model_m2m_filter(Model):
             qs = qs.filter(relationship_entity_id_key == value)
 
             return qs
+
 
     return ModelM2MFilter

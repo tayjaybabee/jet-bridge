@@ -18,26 +18,25 @@ class FilterClass(object):
     def update_filters(self):
         filters = []
 
-        if self.meta:
-            if hasattr(self.meta, 'model'):
-                Model = self.meta.model
-                mapper = inspect(Model)
-                columns = mapper.columns
+        if self.meta and hasattr(self.meta, 'model'):
+            Model = self.meta.model
+            mapper = inspect(Model)
+            columns = mapper.columns
 
-                if hasattr(self.meta, 'fields'):
-                    columns = filter(lambda x: x.name in self.meta.fields, columns)
+            if hasattr(self.meta, 'fields'):
+                columns = filter(lambda x: x.name in self.meta.fields, columns)
 
-                for column in columns:
-                    item = filter_for_data_type(column.type)
-                    for lookup in item['lookups']:
-                        for exclude in [False, True]:
-                            instance = item['filter_class'](
-                                name=column.key,
-                                column=column,
-                                lookup=lookup,
-                                exclude=exclude
-                            )
-                            filters.append(instance)
+            for column in columns:
+                item = filter_for_data_type(column.type)
+                for lookup in item['lookups']:
+                    for exclude in [False, True]:
+                        instance = item['filter_class'](
+                            name=column.key,
+                            column=column,
+                            lookup=lookup,
+                            exclude=exclude
+                        )
+                        filters.append(instance)
 
         declared_filters = filter(lambda x: isinstance(x[1], Filter), map(lambda x: (x, getattr(self, x)), dir(self)))
 
